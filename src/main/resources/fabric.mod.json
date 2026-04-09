@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"id": "modid",
 	"version": "${version}",
-	"name": "Example Mod",
+	"name": "fabric-ai-assistant",
 	"description": "This is an example description! Tell everyone what your mod is about!",
 	"authors": [
 		"Me!"
@@ -30,9 +30,9 @@
 		}
 	],
 	"depends": {
-		"fabricloader": ">=0.18.6",
-		"minecraft": "~26.1.1",
-		"java": ">=25",
+		"fabricloader": ">=0.16.5",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
 		"fabric-api": "*"
 	}
 }
