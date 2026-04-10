@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 public class ExampleMod implements ModInitializer {
 	public static final String MOD_ID = "modid";
+	private static final String RESPONSE_PREFIX = "<server-ai> - ";
 
 	// This logger is used to write text to the console and the log file.
 	// It is considered best practice to use your mod id as the logger's name.
@@ -23,7 +24,7 @@ public class ExampleMod implements ModInitializer {
 			dispatcher.register(CommandManager.literal("ai")
 				.executes(context -> {
 					context.getSource().sendFeedback(
-						() -> Text.literal("[AI] Test reply. Usage: /ai <message>"),
+						() -> Text.literal(RESPONSE_PREFIX + "Test reply. Usage: /ai <message>"),
 						false
 					);
 					return 1;
@@ -32,7 +33,7 @@ public class ExampleMod implements ModInitializer {
 					.executes(context -> {
 						String message = StringArgumentType.getString(context, "message");
 						context.getSource().sendFeedback(
-							() -> Text.literal("[AI] Test reply received: " + message),
+							() -> Text.literal(RESPONSE_PREFIX + "Test reply received: " + message),
 							false
 						);
 						return 1;
