@@ -13,13 +13,21 @@ public final class ModConfig {
 	private static final String FILE_NAME = "fabric-ai-assistant.properties";
 	private static final String DEFAULT_RESPONSE_PREFIX = "<server-ai> - ";
 	private static final String DEFAULT_COMMAND_NAME = "ai";
+	private static final String DEFAULT_MODEL = "gpt-4.1-mini";
+	private static final String DEFAULT_SYSTEM_PROMPT = "You are a helpful Minecraft server assistant. Keep replies concise and directly answer the player's message.";
 
 	private final String responsePrefix;
 	private final String commandName;
+	private final String apiKey;
+	private final String model;
+	private final String systemPrompt;
 
-	private ModConfig(String responsePrefix, String commandName) {
+	private ModConfig(String responsePrefix, String commandName, String apiKey, String model, String systemPrompt) {
 		this.responsePrefix = responsePrefix;
 		this.commandName = commandName;
+		this.apiKey = apiKey;
+		this.model = model;
+		this.systemPrompt = systemPrompt;
 	}
 
 	public static ModConfig load() {
@@ -47,11 +55,41 @@ public final class ModConfig {
 				changed = true;
 			}
 
+			if (!properties.containsKey("api_key")) {
+				properties.setProperty("api_key", "");
+				changed = true;
+			}
+
+			if (!properties.containsKey("model")) {
+				properties.setProperty("model", DEFAULT_MODEL);
+				changed = true;
+			}
+
+			if (!properties.containsKey("system_prompt")) {
+				properties.setProperty("system_prompt", DEFAULT_SYSTEM_PROMPT);
+				changed = true;
+			}
+
 			String responsePrefix = properties.getProperty("response_prefix", DEFAULT_RESPONSE_PREFIX);
 			String commandName = sanitizeCommandName(properties.getProperty("chat_command", DEFAULT_COMMAND_NAME));
+			String apiKey = properties.getProperty("api_key", "").trim();
+			String model = properties.getProperty("model", DEFAULT_MODEL).trim();
+			String systemPrompt = properties.getProperty("system_prompt", DEFAULT_SYSTEM_PROMPT).trim();
 
 			if (!commandName.equals(properties.getProperty("chat_command"))) {
 				properties.setProperty("chat_command", commandName);
+				changed = true;
+			}
+
+			if (model.isEmpty()) {
+				model = DEFAULT_MODEL;
+				properties.setProperty("model", model);
+				changed = true;
+			}
+
+			if (systemPrompt.isEmpty()) {
+				systemPrompt = DEFAULT_SYSTEM_PROMPT;
+				properties.setProperty("system_prompt", systemPrompt);
 				changed = true;
 			}
 
@@ -59,10 +97,10 @@ public final class ModConfig {
 				writeConfig(configPath, properties);
 			}
 
-			return new ModConfig(responsePrefix, commandName);
+			return new ModConfig(responsePrefix, commandName, apiKey, model, systemPrompt);
 		} catch (IOException exception) {
 			ExampleMod.LOGGER.error("Failed to load config from {}", configPath, exception);
-			return new ModConfig(DEFAULT_RESPONSE_PREFIX, DEFAULT_COMMAND_NAME);
+			return new ModConfig(DEFAULT_RESPONSE_PREFIX, DEFAULT_COMMAND_NAME, "", DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT);
 		}
 	}
 
@@ -72,6 +110,9 @@ public final class ModConfig {
 				fabric-ai-assistant config
 				response_prefix: text prepended to bot replies
 				chat_command: command name without the leading slash
+				api_key: OpenAI API key used for AI requests
+				model: OpenAI model name for responses
+				system_prompt: instructions sent before each player message
 				Example: chat_command=ai makes the command /ai
 				""");
 		}
@@ -102,5 +143,17 @@ public final class ModConfig {
 
 	public String commandName() {
 		return commandName;
+	}
+
+	public String apiKey() {
+		return apiKey;
+	}
+
+	public String model() {
+		return model;
+	}
+
+	public String systemPrompt() {
+		return systemPrompt;
 	}
 }
