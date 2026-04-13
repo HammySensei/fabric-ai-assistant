@@ -10,5 +10,6 @@ Editable settings:
 - `api_key` stores the OpenAI API key used for requests.
 - `model` selects the OpenAI model name used for responses.
 - `system_prompt` defines the instructions prepended before each player message.
+- `loading_text` controls the chat message shown while the AI response is loading.
 
 Normal player chat is forwarded automatically. The reply is sent privately back to the player who triggered it.

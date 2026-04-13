@@ -15,19 +15,22 @@ public final class ModConfig {
 	private static final String DEFAULT_COMMAND_NAME = "ai";
 	private static final String DEFAULT_MODEL = "gpt-4.1-mini";
 	private static final String DEFAULT_SYSTEM_PROMPT = "You are a helpful Minecraft server assistant. Keep replies concise and directly answer the player's message.";
+	private static final String DEFAULT_LOADING_TEXT = "Thinking...";
 
 	private final String responsePrefix;
 	private final String commandName;
 	private final String apiKey;
 	private final String model;
 	private final String systemPrompt;
+	private final String loadingText;
 
-	private ModConfig(String responsePrefix, String commandName, String apiKey, String model, String systemPrompt) {
+	private ModConfig(String responsePrefix, String commandName, String apiKey, String model, String systemPrompt, String loadingText) {
 		this.responsePrefix = responsePrefix;
 		this.commandName = commandName;
 		this.apiKey = apiKey;
 		this.model = model;
 		this.systemPrompt = systemPrompt;
+		this.loadingText = loadingText;
 	}
 
 	public static ModConfig load() {
@@ -70,11 +73,17 @@ public final class ModConfig {
 				changed = true;
 			}
 
+			if (!properties.containsKey("loading_text")) {
+				properties.setProperty("loading_text", DEFAULT_LOADING_TEXT);
+				changed = true;
+			}
+
 			String responsePrefix = properties.getProperty("response_prefix", DEFAULT_RESPONSE_PREFIX);
 			String commandName = sanitizeCommandName(properties.getProperty("chat_command", DEFAULT_COMMAND_NAME));
 			String apiKey = properties.getProperty("api_key", "").trim();
 			String model = properties.getProperty("model", DEFAULT_MODEL).trim();
 			String systemPrompt = properties.getProperty("system_prompt", DEFAULT_SYSTEM_PROMPT).trim();
+			String loadingText = properties.getProperty("loading_text", DEFAULT_LOADING_TEXT).trim();
 
 			if (!commandName.equals(properties.getProperty("chat_command"))) {
 				properties.setProperty("chat_command", commandName);
@@ -93,14 +102,20 @@ public final class ModConfig {
 				changed = true;
 			}
 
+			if (loadingText.isEmpty()) {
+				loadingText = DEFAULT_LOADING_TEXT;
+				properties.setProperty("loading_text", loadingText);
+				changed = true;
+			}
+
 			if (changed || Files.notExists(configPath)) {
 				writeConfig(configPath, properties);
 			}
 
-			return new ModConfig(responsePrefix, commandName, apiKey, model, systemPrompt);
+			return new ModConfig(responsePrefix, commandName, apiKey, model, systemPrompt, loadingText);
 		} catch (IOException exception) {
 			ExampleMod.LOGGER.error("Failed to load config from {}", configPath, exception);
-			return new ModConfig(DEFAULT_RESPONSE_PREFIX, DEFAULT_COMMAND_NAME, "", DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT);
+			return new ModConfig(DEFAULT_RESPONSE_PREFIX, DEFAULT_COMMAND_NAME, "", DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT, DEFAULT_LOADING_TEXT);
 		}
 	}
 
@@ -113,6 +128,7 @@ public final class ModConfig {
 				api_key: OpenAI API key used for AI requests
 				model: OpenAI model name for responses
 				system_prompt: instructions sent before each player message
+				loading_text: chat message shown while the AI response is loading
 				Example: chat_command=ai makes the command /ai
 				""");
 		}
@@ -155,5 +171,9 @@ public final class ModConfig {
 
 	public String systemPrompt() {
 		return systemPrompt;
+	}
+
+	public String loadingText() {
+		return loadingText;
 	}
 }
