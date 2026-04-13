@@ -24,14 +24,20 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class ExampleMod implements ModInitializer {
 	public static final String MOD_ID = "modid";
 	private static final String RESPONSES_API_URL = "https://api.openai.com/v1/responses";
 	private static final Gson GSON = new Gson();
+	private static final String[] LOADING_FRAMES = {"◜", "◠", "◝", "◞", "◡", "◟"};
 
 	// This logger is used to write text to the console and the log file.
 	// It is considered best practice to use your mod id as the logger's name.
@@ -42,6 +48,12 @@ public class ExampleMod implements ModInitializer {
 		thread.setDaemon(true);
 		return thread;
 	});
+	private final ScheduledExecutorService loadingIndicatorExecutor = Executors.newScheduledThreadPool(1, runnable -> {
+		Thread thread = new Thread(runnable, MOD_ID + "-loading-indicator");
+		thread.setDaemon(true);
+		return thread;
+	});
+	private final Map<UUID, ScheduledFuture<?>> loadingIndicators = new ConcurrentHashMap<>();
 
 	@Override
 	public void onInitialize() {
@@ -93,6 +105,8 @@ public class ExampleMod implements ModInitializer {
 
 		UUID playerId = player.getUuid();
 		String playerName = player.getName().getString();
+		player.sendMessage(Text.literal(config.responsePrefix() + config.loadingText()), false);
+		startLoadingIndicator(server, playerId, config.responsePrefix());
 		requestExecutor.submit(() -> requestAiReply(server, playerId, playerName, trimmedMessage, config, httpClient));
 	}
 
@@ -106,11 +120,17 @@ public class ExampleMod implements ModInitializer {
 	) {
 		try {
 			String reply = fetchAiReply(playerName, playerMessage, config, httpClient);
-			server.execute(() -> deliverReply(server, playerId, config.responsePrefix() + reply));
+			server.execute(() -> {
+				stopLoadingIndicator(server, playerId);
+				deliverReply(server, playerId, config.responsePrefix() + reply);
+			});
 		} catch (Exception exception) {
 			LOGGER.error("Failed to fetch AI reply for {}", playerName, exception);
 			String playerFacingError = buildPlayerFacingError(exception);
-			server.execute(() -> deliverReply(server, playerId, config.responsePrefix() + playerFacingError));
+			server.execute(() -> {
+				stopLoadingIndicator(server, playerId);
+				deliverReply(server, playerId, config.responsePrefix() + playerFacingError);
+			});
 		}
 	}
 
@@ -216,6 +236,44 @@ public class ExampleMod implements ModInitializer {
 		}
 
 		return "The AI request failed. Check the server log for details.";
+	}
+
+	private void startLoadingIndicator(MinecraftServer server, UUID playerId, String responsePrefix) {
+		stopLoadingIndicator(server, playerId);
+
+		ScheduledFuture<?> future = loadingIndicatorExecutor.scheduleAtFixedRate(new Runnable() {
+			private int frameIndex;
+
+			@Override
+			public void run() {
+				String frame = LOADING_FRAMES[frameIndex % LOADING_FRAMES.length];
+				frameIndex++;
+
+				server.execute(() -> {
+					ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+					if (player == null) {
+						stopLoadingIndicator(server, playerId);
+						return;
+					}
+
+					player.sendMessage(Text.literal(responsePrefix + frame), true);
+				});
+			}
+		}, 0, 200, TimeUnit.MILLISECONDS);
+
+		loadingIndicators.put(playerId, future);
+	}
+
+	private void stopLoadingIndicator(MinecraftServer server, UUID playerId) {
+		ScheduledFuture<?> future = loadingIndicators.remove(playerId);
+		if (future != null) {
+			future.cancel(false);
+		}
+
+		ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+		if (player != null) {
+			player.sendMessage(Text.literal(""), true);
+		}
 	}
 
 	private void deliverReply(MinecraftServer server, UUID playerId, String reply) {
